@@ -1,0 +1,39 @@
+{
+  "name": "@fnix/activestorage-resumable",
+  "version": "1.0.0",
+  "description": "Resumable support for ActiveStorage",
+  "main": "app/assets/javascripts/activestorage-resumable.js",
+  "repository": "https://github.com/fnix/activestorage-resumable",
+  "author": "Kadu Diógenes <kadu@fnix.com.br>",
+  "license": "MIT",
+  "scripts": {
+    "prebuild": "yarn lint",
+    "build": "rollup --config rollup.config.js",
+    "lint": "eslint app/javascript",
+    "prepublishOnly": "rm -rf src && cp -R app/javascript/activestorage-resumable src"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.6.0",
+    "@babel/plugin-transform-modules-umd": "^7.2.0",
+    "@babel/plugin-transform-regenerator": "^7.4.5",
+    "@babel/plugin-transform-runtime": "^7.6.0",
+    "@babel/preset-env": "^7.6.0",
+    "core-js": "^3.2.1",
+    "eslint": "^6.3.0",
+    "eslint-plugin-import": "^2.18.2",
+    "regenerator-runtime": "^0.13.3",
+    "rollup": "^1.20.3",
+    "rollup-plugin-async": "^1.2.0",
+    "rollup-plugin-babel": "^4.3.3",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-json": "^4.0.0",
+    "rollup-plugin-node-builtins": "^2.1.2",
+    "rollup-plugin-node-globals": "^1.4.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-terser": "^5.1.1"
+  },
+  "dependencies": {
+    "@fnix/gcs-browser-upload": "^1.0.5",
+    "spark-md5": "^3.0.0"
+  }
+}
