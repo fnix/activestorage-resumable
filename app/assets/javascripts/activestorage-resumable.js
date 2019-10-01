@@ -4194,6 +4194,9 @@
       return fn.apply(thisArg, args);
     };
   };
+  var isBuffer = function isBuffer(obj) {
+    return obj != null && obj.constructor != null && typeof obj.constructor.isBuffer === "function" && obj.constructor.isBuffer(obj);
+  };
   var toString$1 = Object.prototype.toString;
   function isArray$1(val) {
     return toString$1.call(val) === "[object Array]";
@@ -4247,13 +4250,16 @@
     return str.replace(/^\s*/, "").replace(/\s*$/, "");
   }
   function isStandardBrowserEnv() {
-    return typeof window !== "undefined" && typeof document !== "undefined" && typeof document.createElement === "function";
+    if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
+      return false;
+    }
+    return typeof window !== "undefined" && typeof document !== "undefined";
   }
   function forEach(obj, fn) {
     if (obj === null || typeof obj === "undefined") {
       return;
     }
-    if (typeof obj !== "object" && !isArray$1(obj)) {
+    if (typeof obj !== "object") {
       obj = [ obj ];
     }
     if (isArray$1(obj)) {
@@ -4262,7 +4268,7 @@
       }
     } else {
       for (var key in obj) {
-        if (obj.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
           fn.call(null, obj[key], key, obj);
         }
       }
@@ -4295,6 +4301,7 @@
   var utils = {
     isArray: isArray$1,
     isArrayBuffer: isArrayBuffer,
+    isBuffer: isBuffer,
     isFormData: isFormData,
     isArrayBufferView: isArrayBufferView,
     isString: isString,
@@ -4313,90 +4320,6 @@
     extend: extend,
     trim: trim
   };
-  var normalizeHeaderName = function normalizeHeaderName(headers, normalizedName) {
-    utils.forEach(headers, function processHeader(value, name) {
-      if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
-        headers[normalizedName] = value;
-        delete headers[name];
-      }
-    });
-  };
-  var PROTECTION_PREFIX = /^\)\]\}',?\n/;
-  var DEFAULT_CONTENT_TYPE = {
-    "Content-Type": "application/x-www-form-urlencoded"
-  };
-  function setContentTypeIfUnset(headers, value) {
-    if (!utils.isUndefined(headers) && utils.isUndefined(headers["Content-Type"])) {
-      headers["Content-Type"] = value;
-    }
-  }
-  var defaults = {
-    transformRequest: [ function transformRequest(data, headers) {
-      normalizeHeaderName(headers, "Content-Type");
-      if (utils.isFormData(data) || utils.isArrayBuffer(data) || utils.isStream(data) || utils.isFile(data) || utils.isBlob(data)) {
-        return data;
-      }
-      if (utils.isArrayBufferView(data)) {
-        return data.buffer;
-      }
-      if (utils.isURLSearchParams(data)) {
-        setContentTypeIfUnset(headers, "application/x-www-form-urlencoded;charset=utf-8");
-        return data.toString();
-      }
-      if (utils.isObject(data)) {
-        setContentTypeIfUnset(headers, "application/json;charset=utf-8");
-        return JSON.stringify(data);
-      }
-      return data;
-    } ],
-    transformResponse: [ function transformResponse(data) {
-      if (typeof data === "string") {
-        data = data.replace(PROTECTION_PREFIX, "");
-        try {
-          data = JSON.parse(data);
-        } catch (e) {}
-      }
-      return data;
-    } ],
-    headers: {
-      common: {
-        Accept: "application/json, text/plain, */*"
-      },
-      patch: utils.merge(DEFAULT_CONTENT_TYPE),
-      post: utils.merge(DEFAULT_CONTENT_TYPE),
-      put: utils.merge(DEFAULT_CONTENT_TYPE)
-    },
-    timeout: 0,
-    xsrfCookieName: "XSRF-TOKEN",
-    xsrfHeaderName: "X-XSRF-TOKEN",
-    maxContentLength: -1,
-    validateStatus: function validateStatus(status) {
-      return status >= 200 && status < 300;
-    }
-  };
-  function InterceptorManager() {
-    this.handlers = [];
-  }
-  InterceptorManager.prototype.use = function use(fulfilled, rejected) {
-    this.handlers.push({
-      fulfilled: fulfilled,
-      rejected: rejected
-    });
-    return this.handlers.length - 1;
-  };
-  InterceptorManager.prototype.eject = function eject(id) {
-    if (this.handlers[id]) {
-      this.handlers[id] = null;
-    }
-  };
-  InterceptorManager.prototype.forEach = function forEach(fn) {
-    utils.forEach(this.handlers, function forEachHandler(h) {
-      if (h !== null) {
-        fn(h);
-      }
-    });
-  };
-  var InterceptorManager_1 = InterceptorManager;
   var global$1 = typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {};
   function defaultSetTimout() {
     throw new Error("setTimeout has not been defined");
@@ -4585,30 +4508,33 @@
     config: config,
     uptime: uptime
   };
-  var transformData = function transformData(data, headers, fns) {
-    utils.forEach(fns, function transform(fn) {
-      data = fn(data, headers);
+  var normalizeHeaderName = function normalizeHeaderName(headers, normalizedName) {
+    utils.forEach(headers, function processHeader(value, name) {
+      if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
+        headers[normalizedName] = value;
+        delete headers[name];
+      }
     });
-    return data;
   };
-  var enhanceError = function enhanceError(error, config, code, response) {
+  var enhanceError = function enhanceError(error, config, code, request, response) {
     error.config = config;
     if (code) {
       error.code = code;
     }
+    error.request = request;
     error.response = response;
     return error;
   };
-  var createError = function createError(message, config, code, response) {
+  var createError = function createError(message, config, code, request, response) {
     var error = new Error(message);
-    return enhanceError(error, config, code, response);
+    return enhanceError(error, config, code, request, response);
   };
   var settle = function settle(resolve, reject, response) {
     var validateStatus = response.config.validateStatus;
     if (!response.status || !validateStatus || validateStatus(response.status)) {
       resolve(response);
     } else {
-      reject(createError("Request failed with status code " + response.status, response.config, null, response));
+      reject(createError("Request failed with status code " + response.status, response.config, null, response.request, response));
     }
   };
   function encode(val) {
@@ -4631,8 +4557,7 @@
         }
         if (utils.isArray(val)) {
           key = key + "[]";
-        }
-        if (!utils.isArray(val)) {
+        } else {
           val = [ val ];
         }
         utils.forEach(val, function parseValue(v) {
@@ -4651,6 +4576,7 @@
     }
     return url;
   };
+  var ignoreDuplicateOf = [ "age", "authorization", "content-length", "content-type", "etag", "expires", "from", "host", "if-modified-since", "if-unmodified-since", "last-modified", "location", "max-forwards", "proxy-authorization", "referer", "retry-after", "user-agent" ];
   var parseHeaders = function parseHeaders(headers) {
     var parsed = {};
     var key;
@@ -4664,7 +4590,14 @@
       key = utils.trim(line.substr(0, i)).toLowerCase();
       val = utils.trim(line.substr(i + 1));
       if (key) {
-        parsed[key] = parsed[key] ? parsed[key] + ", " + val : val;
+        if (parsed[key] && ignoreDuplicateOf.indexOf(key) >= 0) {
+          return;
+        }
+        if (key === "set-cookie") {
+          parsed[key] = (parsed[key] ? parsed[key] : []).concat([ val ]);
+        } else {
+          parsed[key] = parsed[key] ? parsed[key] + ", " + val : val;
+        }
       }
     });
     return parsed;
@@ -4701,27 +4634,6 @@
       return true;
     };
   }();
-  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-  function E() {
-    this.message = "String contains an invalid character";
-  }
-  E.prototype = new Error();
-  E.prototype.code = 5;
-  E.prototype.name = "InvalidCharacterError";
-  function btoa$1(input) {
-    var str = String(input);
-    var output = "";
-    for (var block, charCode, idx = 0, map = chars; str.charAt(idx | 0) || (map = "=", 
-    idx % 1); output += map.charAt(63 & block >> 8 - idx % 1 * 8)) {
-      charCode = str.charCodeAt(idx += 3 / 4);
-      if (charCode > 255) {
-        throw new E();
-      }
-      block = block << 8 | charCode;
-    }
-    return output;
-  }
-  var btoa_1 = btoa$1;
   var cookies = utils.isStandardBrowserEnv() ? function standardBrowserEnv() {
     return {
       write: function write(name, value, expires, path, domain, secure) {
@@ -4758,7 +4670,6 @@
       remove: function remove() {}
     };
   }();
-  var btoa$2 = typeof window !== "undefined" && window.btoa || btoa_1;
   var xhr = function xhrAdapter(config) {
     return new Promise(function dispatchXhrRequest(resolve, reject) {
       var requestData = config.data;
@@ -4767,35 +4678,26 @@
         delete requestHeaders["Content-Type"];
       }
       var request = new XMLHttpRequest();
-      var loadEvent = "onreadystatechange";
-      var xDomain = false;
-      if (process$3.env.NODE_ENV !== "test" && typeof window !== "undefined" && window.XDomainRequest && !("withCredentials" in request) && !isURLSameOrigin(config.url)) {
-        request = new window.XDomainRequest();
-        loadEvent = "onload";
-        xDomain = true;
-        request.onprogress = function handleProgress() {};
-        request.ontimeout = function handleTimeout() {};
-      }
       if (config.auth) {
         var username = config.auth.username || "";
         var password = config.auth.password || "";
-        requestHeaders.Authorization = "Basic " + btoa$2(username + ":" + password);
+        requestHeaders.Authorization = "Basic " + btoa(username + ":" + password);
       }
       request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
       request.timeout = config.timeout;
-      request[loadEvent] = function handleLoad() {
-        if (!request || request.readyState !== 4 && !xDomain) {
+      request.onreadystatechange = function handleLoad() {
+        if (!request || request.readyState !== 4) {
           return;
         }
-        if (request.status === 0) {
+        if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf("file:") === 0)) {
           return;
         }
         var responseHeaders = "getAllResponseHeaders" in request ? parseHeaders(request.getAllResponseHeaders()) : null;
         var responseData = !config.responseType || config.responseType === "text" ? request.responseText : request.response;
         var response = {
           data: responseData,
-          status: request.status === 1223 ? 204 : request.status,
-          statusText: request.status === 1223 ? "No Content" : request.statusText,
+          status: request.status,
+          statusText: request.statusText,
           headers: responseHeaders,
           config: config,
           request: request
@@ -4804,11 +4706,11 @@
         request = null;
       };
       request.onerror = function handleError() {
-        reject(createError("Network Error", config));
+        reject(createError("Network Error", config, null, request));
         request = null;
       };
       request.ontimeout = function handleTimeout() {
-        reject(createError("timeout of " + config.timeout + "ms exceeded", config, "ECONNABORTED"));
+        reject(createError("timeout of " + config.timeout + "ms exceeded", config, "ECONNABORTED", request));
         request = null;
       };
       if (utils.isStandardBrowserEnv()) {
@@ -4834,7 +4736,7 @@
         try {
           request.responseType = config.responseType;
         } catch (e) {
-          if (request.responseType !== "json") {
+          if (config.responseType !== "json") {
             throw e;
           }
         }
@@ -4845,45 +4747,158 @@
       if (typeof config.onUploadProgress === "function" && request.upload) {
         request.upload.addEventListener("progress", config.onUploadProgress);
       }
+      if (config.cancelToken) {
+        config.cancelToken.promise.then(function onCanceled(cancel) {
+          if (!request) {
+            return;
+          }
+          request.abort();
+          reject(cancel);
+          request = null;
+        });
+      }
       if (requestData === undefined) {
         requestData = null;
       }
       request.send(requestData);
     });
   };
+  var DEFAULT_CONTENT_TYPE = {
+    "Content-Type": "application/x-www-form-urlencoded"
+  };
+  function setContentTypeIfUnset(headers, value) {
+    if (!utils.isUndefined(headers) && utils.isUndefined(headers["Content-Type"])) {
+      headers["Content-Type"] = value;
+    }
+  }
+  function getDefaultAdapter() {
+    var adapter;
+    if (typeof XMLHttpRequest !== "undefined") {
+      adapter = xhr;
+    } else if (typeof process$3 !== "undefined") {
+      adapter = xhr;
+    }
+    return adapter;
+  }
+  var defaults = {
+    adapter: getDefaultAdapter(),
+    transformRequest: [ function transformRequest(data, headers) {
+      normalizeHeaderName(headers, "Content-Type");
+      if (utils.isFormData(data) || utils.isArrayBuffer(data) || utils.isBuffer(data) || utils.isStream(data) || utils.isFile(data) || utils.isBlob(data)) {
+        return data;
+      }
+      if (utils.isArrayBufferView(data)) {
+        return data.buffer;
+      }
+      if (utils.isURLSearchParams(data)) {
+        setContentTypeIfUnset(headers, "application/x-www-form-urlencoded;charset=utf-8");
+        return data.toString();
+      }
+      if (utils.isObject(data)) {
+        setContentTypeIfUnset(headers, "application/json;charset=utf-8");
+        return JSON.stringify(data);
+      }
+      return data;
+    } ],
+    transformResponse: [ function transformResponse(data) {
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch (e) {}
+      }
+      return data;
+    } ],
+    timeout: 0,
+    xsrfCookieName: "XSRF-TOKEN",
+    xsrfHeaderName: "X-XSRF-TOKEN",
+    maxContentLength: -1,
+    validateStatus: function validateStatus(status) {
+      return status >= 200 && status < 300;
+    }
+  };
+  defaults.headers = {
+    common: {
+      Accept: "application/json, text/plain, */*"
+    }
+  };
+  utils.forEach([ "delete", "get", "head" ], function forEachMethodNoData(method) {
+    defaults.headers[method] = {};
+  });
+  utils.forEach([ "post", "put", "patch" ], function forEachMethodWithData(method) {
+    defaults.headers[method] = utils.merge(DEFAULT_CONTENT_TYPE);
+  });
+  var defaults_1 = defaults;
+  function InterceptorManager() {
+    this.handlers = [];
+  }
+  InterceptorManager.prototype.use = function use(fulfilled, rejected) {
+    this.handlers.push({
+      fulfilled: fulfilled,
+      rejected: rejected
+    });
+    return this.handlers.length - 1;
+  };
+  InterceptorManager.prototype.eject = function eject(id) {
+    if (this.handlers[id]) {
+      this.handlers[id] = null;
+    }
+  };
+  InterceptorManager.prototype.forEach = function forEach(fn) {
+    utils.forEach(this.handlers, function forEachHandler(h) {
+      if (h !== null) {
+        fn(h);
+      }
+    });
+  };
+  var InterceptorManager_1 = InterceptorManager;
+  var transformData = function transformData(data, headers, fns) {
+    utils.forEach(fns, function transform(fn) {
+      data = fn(data, headers);
+    });
+    return data;
+  };
+  var isCancel = function isCancel(value) {
+    return !!(value && value.__CANCEL__);
+  };
+  var isAbsoluteURL = function isAbsoluteURL(url) {
+    return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
+  };
+  var combineURLs = function combineURLs(baseURL, relativeURL) {
+    return relativeURL ? baseURL.replace(/\/+$/, "") + "/" + relativeURL.replace(/^\/+/, "") : baseURL;
+  };
+  function throwIfCancellationRequested(config) {
+    if (config.cancelToken) {
+      config.cancelToken.throwIfRequested();
+    }
+  }
   var dispatchRequest = function dispatchRequest(config) {
+    throwIfCancellationRequested(config);
+    if (config.baseURL && !isAbsoluteURL(config.url)) {
+      config.url = combineURLs(config.baseURL, config.url);
+    }
     config.headers = config.headers || {};
     config.data = transformData(config.data, config.headers, config.transformRequest);
     config.headers = utils.merge(config.headers.common || {}, config.headers[config.method] || {}, config.headers || {});
     utils.forEach([ "delete", "get", "head", "post", "put", "patch", "common" ], function cleanHeaderConfig(method) {
       delete config.headers[method];
     });
-    var adapter;
-    if (typeof config.adapter === "function") {
-      adapter = config.adapter;
-    } else if (typeof XMLHttpRequest !== "undefined") {
-      adapter = xhr;
-    } else if (typeof process$3 !== "undefined") {
-      adapter = xhr;
-    }
-    return Promise.resolve(config).then(adapter).then(function onFulfilled(response) {
+    var adapter = config.adapter || defaults_1.adapter;
+    return adapter(config).then(function onAdapterResolution(response) {
+      throwIfCancellationRequested(config);
       response.data = transformData(response.data, response.headers, config.transformResponse);
       return response;
-    }, function onRejected(error) {
-      if (error && error.response) {
-        error.response.data = transformData(error.response.data, error.response.headers, config.transformResponse);
+    }, function onAdapterRejection(reason) {
+      if (!isCancel(reason)) {
+        throwIfCancellationRequested(config);
+        if (reason && reason.response) {
+          reason.response.data = transformData(reason.response.data, reason.response.headers, config.transformResponse);
+        }
       }
-      return Promise.reject(error);
+      return Promise.reject(reason);
     });
   };
-  var isAbsoluteURL = function isAbsoluteURL(url) {
-    return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
-  };
-  var combineURLs = function combineURLs(baseURL, relativeURL) {
-    return baseURL.replace(/\/+$/, "") + "/" + relativeURL.replace(/^\/+/, "");
-  };
-  function Axios(defaultConfig) {
-    this.defaults = utils.merge(defaults, defaultConfig);
+  function Axios(instanceConfig) {
+    this.defaults = instanceConfig;
     this.interceptors = {
       request: new InterceptorManager_1(),
       response: new InterceptorManager_1()
@@ -4895,12 +4910,10 @@
         url: arguments[0]
       }, arguments[1]);
     }
-    config = utils.merge(defaults, this.defaults, {
+    config = utils.merge(defaults_1, {
       method: "get"
-    }, config);
-    if (config.baseURL && !isAbsoluteURL(config.url)) {
-      config.url = combineURLs(config.baseURL, config.url);
-    }
+    }, this.defaults, config);
+    config.method = config.method.toLowerCase();
     var chain = [ dispatchRequest, undefined ];
     var promise = Promise.resolve(config);
     this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
@@ -4914,7 +4927,7 @@
     }
     return promise;
   };
-  utils.forEach([ "delete", "get", "head" ], function forEachMethodNoData(method) {
+  utils.forEach([ "delete", "get", "head", "options" ], function forEachMethodNoData(method) {
     Axios.prototype[method] = function(url, config) {
       return this.request(utils.merge(config || {}, {
         method: method,
@@ -4932,6 +4945,47 @@
     };
   });
   var Axios_1 = Axios;
+  function Cancel(message) {
+    this.message = message;
+  }
+  Cancel.prototype.toString = function toString() {
+    return "Cancel" + (this.message ? ": " + this.message : "");
+  };
+  Cancel.prototype.__CANCEL__ = true;
+  var Cancel_1 = Cancel;
+  function CancelToken(executor) {
+    if (typeof executor !== "function") {
+      throw new TypeError("executor must be a function.");
+    }
+    var resolvePromise;
+    this.promise = new Promise(function promiseExecutor(resolve) {
+      resolvePromise = resolve;
+    });
+    var token = this;
+    executor(function cancel(message) {
+      if (token.reason) {
+        return;
+      }
+      token.reason = new Cancel_1(message);
+      resolvePromise(token.reason);
+    });
+  }
+  CancelToken.prototype.throwIfRequested = function throwIfRequested() {
+    if (this.reason) {
+      throw this.reason;
+    }
+  };
+  CancelToken.source = function source() {
+    var cancel;
+    var token = new CancelToken(function executor(c) {
+      cancel = c;
+    });
+    return {
+      token: token,
+      cancel: cancel
+    };
+  };
+  var CancelToken_1 = CancelToken;
   var spread = function spread(callback) {
     return function wrap(arr) {
       return callback.apply(null, arr);
@@ -4944,11 +4998,14 @@
     utils.extend(instance, context);
     return instance;
   }
-  var axios = createInstance();
+  var axios = createInstance(defaults_1);
   axios.Axios = Axios_1;
-  axios.create = function create(defaultConfig) {
-    return createInstance(defaultConfig);
+  axios.create = function create(instanceConfig) {
+    return createInstance(utils.merge(defaults_1, instanceConfig));
   };
+  axios.Cancel = Cancel_1;
+  axios.CancelToken = CancelToken_1;
+  axios.isCancel = isCancel;
   axios.all = function all(promises) {
     return Promise.all(promises);
   };

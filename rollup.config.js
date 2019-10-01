@@ -1,5 +1,4 @@
 import globals from "rollup-plugin-node-globals"
-import builtins from "rollup-plugin-node-builtins"
 import resolve from "rollup-plugin-node-resolve"
 import json from "rollup-plugin-json"
 import commonjs from "rollup-plugin-commonjs"
@@ -40,7 +39,6 @@ export default {
     }),
     commonjs(),
     globals(),
-    builtins(),
     terser(terserOptions)
   ]
 }
