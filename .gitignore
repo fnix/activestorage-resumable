@@ -4,34 +4,24 @@
 # or operating system, you probably want to add a global ignore instead:
 #   git config --global core.excludesfile '~/.gitignore_global'
 
-# Ignore bundler config.
-/.bundle
-
-# Ignore all logfiles and tempfiles.
-/log/*
-/tmp/*
 !/log/.keep
-!/tmp/.keep
-
-# Ignore uploaded files in development
-/storage/*
 !/storage/.keep
-
-/node_modules
-/yarn-error.log
-
-/public/assets
+!/tmp/.keep
 .byebug_history
-
-# Ignore master key for decrypting credentials and more.
+.yarn-integrity
+/.bundle
 /config/master.key
-
+/log/*
+/node_modules
+/node_modules
+/public/assets
 /public/packs
 /public/packs-test
-/node_modules
-/yarn-error.log
-yarn-debug.log*
-.yarn-integrity
-
-activestorage-resumable-*.gem
 /src
+/storage/*
+/tmp/*
+/yarn-error.log
+/yarn-error.log
+activestorage-resumable-*.gem
+Gemfile.lock
+yarn-debug.log*
