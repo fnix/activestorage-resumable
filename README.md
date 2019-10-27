@@ -27,7 +27,15 @@ Active Storage Resumable, also includes a JavaScript library, that uploads file 
 localStorage, allowing to resume an upload even after a browser restart.
 
 ### Resumable upload installation
-1. Include `activestorage-resumable.js` in your application's JavaScript bundle.
+1. Export an environment variable called UPLOAD_ORIGIN_URL with the upload origin URL, for example
+   'http://localhost:3000'. You can also create a `config/initializers/activestorage_resumable.rb` with the following:
+
+    ```ruby
+    ActiveStorage::Resumable.configure do |config|
+      config.upload_origin_url = 'https://mydomain.test:3000'
+    end
+    ```
+2. Include `activestorage-resumable.js` in your application's JavaScript bundle.
 
     Using the asset pipeline:
     ```js
@@ -37,12 +45,12 @@ localStorage, allowing to resume an upload even after a browser restart.
     ```js
     require("@fnix/activestorage-resumable").start()
     ```
-2. Annotate file inputs with the resumable upload URL.
+3. Annotate file inputs with the resumable upload URL.
 
     ```ruby
     <%= form.file_field :attachments, multiple: true, resumable_upload: true %>
     ```
-3. That's it! Uploads begin upon form submission.
+4. That's it! Uploads begin upon form submission.
 
 ### Resumable upload JavaScript events
 
