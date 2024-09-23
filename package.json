@@ -22,7 +22,7 @@
     "eslint": "^6.3.0",
     "eslint-plugin-import": "^2.18.2",
     "regenerator-runtime": "^0.13.3",
-    "rollup": "^1.20.3",
+    "rollup": "^3.29.5",
     "rollup-plugin-async": "^1.2.0",
     "rollup-plugin-babel": "^4.3.3",
     "rollup-plugin-commonjs": "^10.1.0",
